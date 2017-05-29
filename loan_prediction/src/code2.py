@@ -9,7 +9,7 @@ from sklearn.linear_model import LogisticRegression, LinearRegression
 from scipy.stats import mode
 from tqdm import tqdm
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestClassifier, ExtraTreesClassifier
 from sklearn.ensemble import RandomForestRegressor
 from sklearn import preprocessing
 
@@ -101,7 +101,8 @@ class feature_engineering:
 		data = pd.concat([train, test])
 		data.drop(['Loan_ID'], axis=1, inplace=True)
 
-		data = self.impute(data)	
+		data = self.impute(data)
+		data.drop(['Gender'], axis=1, inplace=True)	
 		data = pd.get_dummies(data)
 		
 		x = data[:train.shape[0]]
