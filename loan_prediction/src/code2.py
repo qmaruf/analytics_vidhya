@@ -104,8 +104,24 @@ class feature_engineering:
 		data = self.impute(data)
 		data['f1'] = data.ApplicantIncome + data.CoapplicantIncome
 		data['f2'] = data.LoanAmount/data.Loan_Amount_Term
+		data['f3'] = data['f1']/data.Loan_Amount_Term
+		data['f4'] = data.Married + '_' + data.Self_Employed
+		
+		
+		# data['f4'] = (train.Property_Area == 'Semiurban').apply(int)
+		# data['f5'] = (train.Education == 'Graduate').apply(int)
+		# data['f6'] = (train.Married == 'Yes').apply(int)
+
 		data = pd.get_dummies(data)
 		
+		for col in ['ApplicantIncome', 'CoapplicantIncome', 'LoanAmount', 'Loan_Amount_Term', 'f1', 'f2', 'f3']:
+			data[col] = (1.0 + data[col]).apply(np.sqrt)		
+			# data[col] = (data[col] - data[col].min())/(data[col].max()-data[col].min())
+			pass
+		
+
+		print data.head()
+
 		x = data[:train.shape[0]]
 		test = data[train.shape[0]:]
 
