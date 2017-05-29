@@ -2,14 +2,22 @@ import pandas as pd
 from sklearn import svm
 import time
 import numpy as np
-from sklearn.metrics import accuracy_score
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.metrics import accuracy_score, mean_squared_error
+from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
 from sklearn.model_selection import StratifiedKFold
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, LinearRegression
 from scipy.stats import mode
+from tqdm import tqdm
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.ensemble import RandomForestRegressor
+from sklearn import preprocessing
 
-class Credit_History:
-	def main(self):
+
+cat_cols = ["Gender", "Married", "Dependents", "Education", "Self_Employed", "Property_Area"]
+LE = preprocessing.LabelEncoder()
+class missing_value_prediction:
+	def main(self, col):
 		train = pd.read_csv('../input/train.csv')
 		test = pd.read_csv('../input/test.csv')
 
@@ -17,57 +25,66 @@ class Credit_History:
 		data = pd.concat([train, test], axis=0)
 		data.drop('Loan_ID', axis=1, inplace=True)
 
-		data = data[['Education', 'ApplicantIncome', 'CoapplicantIncome', 'Property_Area', 'Credit_History']]
-		full_credit_history = data.Credit_History
-		y = data.Credit_History
-		X = data.drop('Credit_History', axis=1)
-
-		def impute(data):	
-			for col in data.columns:		
-				data[col] = data[col].fillna('empty') if data[col].dtype == 'object' \
-							else data[col].fillna(data[col].mean())
-			return data
-
-		X = impute(X)
+		data = data[['Education', 'ApplicantIncome', 'CoapplicantIncome', 'Property_Area', col]]		
+		
+		
+		target = data[col]
+		y = data[col]		
+		X = data.drop(col, axis=1)		
 		X = pd.get_dummies(X)
+				
 
 		nan_indices = y[pd.isnull(y)].index
 		y = y.drop(nan_indices)
 		X = X.drop(nan_indices)
 
+		X = (X - X.min())/(X.max()-X.min())
+		X = X - X.mean()
+		
+
 		final_accuracy = 0
-		n_splits = 5
-		skf = StratifiedKFold(n_splits=n_splits, random_state=1971)
-		clf = GradientBoostingClassifier()
+		n_splits = 10
+		skf = StratifiedKFold(n_splits=n_splits, random_state=1971)		
+		
+		clf = LinearRegression() if col not in cat_cols else LogisticRegression()			
+		
 
 		X = X.as_matrix()
 		y = y.as_matrix()
+		if col in cat_cols:
+			y = LE.fit_transform(y)
+		predictions = np.zeros((X[nan_indices].shape[0], n_splits))
 
 		for fold, (train_index, test_index) in enumerate(skf.split(X, y)):
 		   X_train, x_valid = X[train_index, :], X[test_index, :]
 		   y_train, y_valid = y[train_index], y[test_index]
+		   
 		   clf.fit(X_train, y_train)
-		   accuracy = accuracy_score(y_valid, clf.predict(x_valid))      
+		   predictions[:, fold] = clf.predict(X[nan_indices])
+		   if col not in cat_cols:
+		   	accuracy = mean_squared_error(y_valid, clf.predict(x_valid))      
+		   else:
+		   	accuracy = accuracy_score(y_valid, clf.predict(x_valid))      
 		   final_accuracy += accuracy
-		   print ('fold %d Credit History Accuracy %f'%(fold, accuracy))
+		   # print ('fold %d %s Accuracy %f'%(fold, col, accuracy))
 
-
-		clf.fit(X, y)
-		pred = clf.predict(X[nan_indices])
-		full_credit_history[full_credit_history.isnull()]=pred
-		return full_credit_history
+		
+		print '%s Accuracy %f'%(col, final_accuracy/float(n_splits))
+		pred = predictions.mean(axis=1) if col not in cat_cols else mode(predictions, axis=1)[0].astype(int)				
+		pred = LE.inverse_transform(pred) if col in cat_cols else pred
+		target[target.isnull()]=pred
+		return target
 
 
 
 class feature_engineering:
 	def impute(self, data):		
-		for col in data.columns:				
-			if col == 'Credit_History':
-				CH = Credit_History()
-				data[col] = CH.main()				
-			else:	
-				data[col] = data[col].fillna('empty') if data[col].dtype == 'object' \
-							else data[col].fillna(data[col].mean())
+		CH = missing_value_prediction()
+		for col in data.columns:			
+			if data[col].isnull().sum() > 0:				
+					data[col] = CH.main(col)	
+					
+		# exit()
 		return data
 
 	def main(self):
@@ -100,15 +117,11 @@ final_accuracy = 0
 random_state = 1971
 
 X, y, test_id, test = FE.main()
-print (X.shape)
-# exit()
+
 predictions = np.zeros((test.shape[0], n_splits))
 loan_status = []
 
 model = LogisticRegression()
-# model = svm.SVC()
-# model = KNeighborsClassifier(n_neighbors=3)
-# model = GradientBoostingClassifier(n_estimators=250, learning_rate=0.05, max_depth=8, random_state=0)
 
 
 skf = StratifiedKFold(n_splits=n_splits, random_state=random_state)
