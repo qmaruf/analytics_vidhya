@@ -102,7 +102,8 @@ class feature_engineering:
 		data.drop(['Loan_ID'], axis=1, inplace=True)
 
 		data = self.impute(data)
-		data.drop(['Gender'], axis=1, inplace=True)	
+		data['f1'] = data.ApplicantIncome + data.CoapplicantIncome
+		data['f2'] = data.LoanAmount/data.Loan_Amount_Term
 		data = pd.get_dummies(data)
 		
 		x = data[:train.shape[0]]
